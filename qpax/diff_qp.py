@@ -76,7 +76,7 @@ def solve_qp_primal_backward(res, input_grad):
     Q, q, A, b, G, h, xr, sr, zr, yr = res
 
     # return all the normal derivatives, then None's for kwargs
-    return (*diff_qp(Q, q, A, b, G, h, xr, sr, zr, yr, input_grad), None, None)
+    return (*diff_qp(Q, q, A, b, G, h, xr, sr, zr, yr, input_grad), None, None, None)
 
 
 solve_qp_primal.defvjp(solve_qp_primal_forward, solve_qp_primal_backward)
