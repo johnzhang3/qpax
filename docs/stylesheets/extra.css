@@ -1,0 +1,102 @@
+/* Hide the site title ("qpax") at the top of the left navigation sidebar. */
+.md-nav--primary > .md-nav__title {
+  display: none;
+}
+
+/* Hide the site name and per-page title shown next to the logo, but keep
+   the title container in the flex layout so the search bar and repo info
+   stay anchored on the right. */
+.md-header__title .md-header__topic {
+  display: none;
+}
+
+/* Primary CTA button — keep it tied to the Q-blue of the logo so the
+   call-to-action stands out against the white header/body chrome. */
+.md-typeset .md-button--primary {
+  background-color: var(--qpax-q);
+  border-color: var(--qpax-q);
+  color: #ffffff;
+}
+
+.md-typeset .md-button--primary:hover,
+.md-typeset .md-button--primary:focus {
+  background-color: #1e40af; /* slightly darker shade for hover */
+  border-color: #1e40af;
+  color: #ffffff;
+}
+
+/* Eyebrow label — small uppercase signpost (e.g. "Features") used on the
+   home page above blocks of content, instead of a heavy h2. */
+.md-typeset .eyebrow {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--md-default-fg-color--light);
+  margin: 2.75rem 0 1.25rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Home page feature cards
+   ---------------------------------------------------------------------------
+
+   Each of the four cards is tied to one of the QPAX logo letters via a
+   colored top-accent bar and a matching title color. Card backgrounds stay
+   neutral so the accent reads as deliberate, not noisy.
+
+       1st card  →  Q  (royal blue)      Differentiable
+       2nd card  →  P  (sky blue)        Single precision
+       3rd card  →  A  (magenta)         Batchable
+       4th card  →  X  (violet)          Infeasibility avoidance
+*/
+
+:root {
+  --qpax-q: #1d4ed8;
+  --qpax-p: #0ea5e9;
+  --qpax-a: #d946ef;
+  --qpax-x: #a855f7;
+}
+
+.md-typeset .grid.cards > ul > li {
+  border-top: 3px solid transparent;
+  border-radius: 0.2rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.md-typeset .grid.cards > ul > li:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+.md-typeset .grid.cards > ul > li > p:first-child > strong {
+  font-size: 1rem;
+}
+
+.md-typeset .grid.cards > ul > li:nth-child(1) {
+  border-top-color: var(--qpax-q);
+}
+.md-typeset .grid.cards > ul > li:nth-child(1) > p:first-child > strong {
+  color: var(--qpax-q);
+}
+
+.md-typeset .grid.cards > ul > li:nth-child(2) {
+  border-top-color: var(--qpax-p);
+}
+.md-typeset .grid.cards > ul > li:nth-child(2) > p:first-child > strong {
+  color: var(--qpax-p);
+}
+
+.md-typeset .grid.cards > ul > li:nth-child(3) {
+  border-top-color: var(--qpax-a);
+}
+.md-typeset .grid.cards > ul > li:nth-child(3) > p:first-child > strong {
+  color: var(--qpax-a);
+}
+
+.md-typeset .grid.cards > ul > li:nth-child(4) {
+  border-top-color: var(--qpax-x);
+}
+.md-typeset .grid.cards > ul > li:nth-child(4) > p:first-child > strong {
+  color: var(--qpax-x);
+}

@@ -1,0 +1,103 @@
+site_name: qpax
+site_description: Differentiable QP solver in JAX.
+site_url: https://qpax-solver.github.io/qpax
+repo_url: https://github.com/qpax-solver/qpax
+repo_name: qpax
+
+exclude_docs: |
+  instructions.md
+
+theme:
+  name: material
+  logo: assets/images/logo_nobackground_noletters_cropped.png
+  favicon: assets/images/favicon-32x32.png
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.top
+    - navigation.indexes
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - toc.follow
+  palette:
+    scheme: default
+    primary: white
+    accent: indigo
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.snippets:
+      base_path:
+        - .
+        - docs
+      check_paths: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.arithmatex:
+      generic: true
+
+copyright: Copyright &copy; 2026, The qpax developers.
+
+extra:
+  generator: false
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [.]
+          options:
+            show_root_heading: true
+            show_source: false
+            docstring_style: google
+            members_order: source
+            separate_signature: true
+            show_signature_annotations: true
+            merge_init_into_class: true
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Quickstart:
+      - quickstart/index.md
+      - Solve a QP: quickstart/solve.md
+      - Differentiate a QP: quickstart/differentiate.md
+      - Batched solving: quickstart/batched-solve.md
+      - Batched differentiating: quickstart/batched-differentiate.md
+  - Solver settings: solver-settings.md
+  - Algorithm:
+      - algorithm/index.md
+      - Core algorithm: algorithm/core.md
+      - Explicit algorithm: algorithm/explicit.md
+      - Implicit algorithm: algorithm/implicit.md
+  - API reference:
+      - api/index.md
+      - Core API: api/core.md
+      - Explicit API: api/explicit.md
+      - Implicit API: api/implicit.md
+  - Examples:
+      - examples/index.md
+      - Bilevel optimization: examples/bilevel.md
+      - MPC autotuning: examples/mpc-autotuning.md
+      - Multi-agent safety filter: examples/multi-agent-safety.md
+  - Citing: citing.md

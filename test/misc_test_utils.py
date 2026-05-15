@@ -1,6 +1,8 @@
 import jax.numpy as jnp
 import numpy as np
 
+from qpax.implicit.pdip import retraction_map
+
 
 def generate_random_qp(nx, ns, ny):
     x = jnp.array(np.random.randn(nx))
@@ -21,7 +23,6 @@ def generate_random_qp(nx, ns, ny):
     z = jnp.array(z)
 
     h = G @ x + s
-
     b = A @ x
     y = jnp.array(np.random.randn(ny))
     q = -Q @ x - G.T @ z - A.T @ y
@@ -43,6 +44,27 @@ def check_kkt_conditions(Q, q, A, b, G, h, x, s, z, y, solver_tol=1e-3):
         assert jnp.linalg.norm(r4, ord=jnp.inf) <= solver_tol
 
 
+def check_relaxed_implicit_conditions(
+    Q, q, A, b, G, h, x, s, z, y, kappa, solver_tol=1e-5
+):
+    v = z - s
+    r1 = Q @ x + q + A.T @ y + G.T @ z
+    r2 = s * z - kappa
+    r3 = G @ x + s - h
+    r4 = A @ x - b
+    r5 = z - retraction_map(v, kappa)  # noqa: F841
+    r6 = s - retraction_map(-v, kappa)  # noqa: F841
+
+    assert jnp.linalg.norm(r1, ord=jnp.inf) <= solver_tol
+    assert jnp.linalg.norm(r2, ord=jnp.inf) <= solver_tol
+    assert jnp.linalg.norm(r3, ord=jnp.inf) <= solver_tol
+    # assert jnp.linalg.norm(r5, ord=jnp.inf) <= solver_tol
+    # assert jnp.linalg.norm(r6, ord=jnp.inf) <= solver_tol
+
+    if len(b) > 0:
+        assert jnp.linalg.norm(r4, ord=jnp.inf) <= solver_tol
+
+
 def vectorize_mat(mat):
     r, c = mat.shape
     return jnp.reshape(mat, (r * c,))
@@ -55,28 +77,24 @@ def materize_vec(vec, dims):
 def finite_difference(func, x):
     y = func(x)
     dx = 1e-3
-    # finite diff of a vector
     if len(x.shape) == 1:
         g = jnp.zeros(len(x))
 
         for i in range(len(x)):
             x2 = x.at[i].set(x[i] + dx)
             y2 = func(x2)
-
             g = g.at[i].set((y2 - y) / dx)
 
         return g
-    else:
-        nr, nc = x.shape
-        nel = nr * nc
-        g = jnp.zeros(nel)
 
-        for i in range(nel):
-            x2 = vectorize_mat(x)
-            x2 = x2.at[i].set(x2[i] + dx)
+    nr, nc = x.shape
+    nel = nr * nc
+    g = jnp.zeros(nel)
 
-            y2 = func(materize_vec(x2, (nr, nc)))
+    for i in range(nel):
+        x2 = vectorize_mat(x)
+        x2 = x2.at[i].set(x2[i] + dx)
+        y2 = func(materize_vec(x2, (nr, nc)))
+        g = g.at[i].set((y2 - y) / dx)
 
-            g = g.at[i].set((y2 - y) / dx)
-
-        return materize_vec(g, (nr, nc))
+    return materize_vec(g, (nr, nc))

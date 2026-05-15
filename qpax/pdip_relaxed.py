@@ -1,111 +1,61 @@
+"""Top-level relaxed-PDIP dispatcher.
+
+Routes ``relax_qp`` calls to either the explicit (``backend="e"``) or
+implicit (``backend="i"``) backend.
+"""
+
+from typing import Any
+
 import jax
-import jax.numpy as jnp
 
-from qpax.pdip import factorize_kkt, ort_linesearch, solve_kkt_rhs
-
-
-def pdip_newton_step(inputs):
-    """
-    Algorithm 3 Relaxing a Quadratic Program
-    """
-
-    # unpack inputs
-    Q, q, A, b, G, h, x, s, z, y, solver_tol, converged, pdip_iter, target_kappa = (
-        inputs
-    )
-
-    # evaluate relaxed KKT conditions
-    r1 = Q @ x + q + A.T @ y + G.T @ z
-    r2 = s * z - target_kappa  # we added this (relaxed complementarity)
-    r3 = G @ x + s - h
-    r4 = A @ x - b
-
-    # check convergence
-    kkt_res = jnp.concatenate((r1, r2, r3, r4))
-    converged = jnp.where(jnp.linalg.norm(kkt_res, ord=jnp.inf) < solver_tol, 1, 0)
-
-    # calculate and take Newton step
-    P_inv_vec, L_H, L_F = factorize_kkt(Q, G, A, s, z)
-    dx, ds, dz, dy = solve_kkt_rhs(G, A, s, z, P_inv_vec, L_H, L_F, -r1, -r2, -r3, -r4)
-
-    # linesearch and update primal & dual vars
-    alpha = 0.99 * jnp.min(
-        jnp.array([1.0, 0.99 * ort_linesearch(s, ds), 0.99 * ort_linesearch(z, dz)])
-    )
-
-    x = x + alpha * dx
-    s = s + alpha * ds
-    z = z + alpha * dz
-    y = y + alpha * dy
-
-    return (
-        Q,
-        q,
-        A,
-        b,
-        G,
-        h,
-        x,
-        s,
-        z,
-        y,
-        solver_tol,
-        converged,
-        pdip_iter + 1,
-        target_kappa,
-    )
-
-
-# 0 Q
-# 1 q
-# 2 A
-# 3 b
-# 4 G
-# 5 h
-# 6 x
-# 7 s
-# 8 z
-# 9 y
-# 10 solver_tol
-# 11 converged
-# 12 pdip_iter
+from qpax.explicit import pdip_relaxed as _explicit
+from qpax.implicit import pdip_relaxed as _implicit
 
 
 def relax_qp(
-    Q, q, A, b, G, h, x, s, z, y, solver_tol=1e-5, target_kappa=1e-5, max_iter=30
-):
-    # continuation criteria for normal predictor-corrector
-    def relaxed_continuation_criteria(inputs):
-        converged = inputs[11]
-        pdip_iter = inputs[12]
+    Q: jax.Array,
+    q: jax.Array,
+    A: jax.Array,
+    b: jax.Array,
+    G: jax.Array,
+    h: jax.Array,
+    x: jax.Array,
+    s: jax.Array,
+    z: jax.Array,
+    y: jax.Array,
+    *,
+    backend: str = "e",
+    **kwargs: Any,
+) -> tuple:
+    """Refine a PDIP solution to a relaxed (kappa-perturbed) KKT point.
 
-        return jnp.logical_and(pdip_iter < max_iter, converged == 0)
+    Args:
+        Q: ``(n, n)`` PSD cost matrix.
+        q: ``(n,)`` linear cost.
+        A: ``(m, n)`` equality constraint matrix.
+        b: ``(m,)`` equality constraint RHS.
+        G: ``(p, n)`` inequality constraint matrix.
+        h: ``(p,)`` inequality constraint RHS.
+        x: primal warm start, shape ``(n,)``.
+        s: inequality slack warm start, shape ``(p,)``.
+        z: inequality dual warm start, shape ``(p,)``.
+        y: equality dual warm start, shape ``(m,)``.
+        backend: ``"e"`` for the explicit backend (default), ``"i"`` for
+            the implicit backend.
+        **kwargs: forwarded to the selected backend (e.g. ``solver_tol``,
+            ``target_kappa``, ``max_iter``).
 
-    converged = 0
-    pdip_iter = 0
-    init_inputs = (
-        Q,
-        q,
-        A,
-        b,
-        G,
-        h,
-        x,
-        s,
-        z,
-        y,
-        solver_tol,
-        converged,
-        pdip_iter,
-        target_kappa,
-    )
+    Returns:
+        Tuple ``(x, s, z, y, converged, iters)`` of the refined solution.
+    """
+    if backend == "e":
+        return _explicit.relax_qp(Q, q, A, b, G, h, x, s, z, y, **kwargs)
+    if backend == "i":
+        xr, sr, zr, yr, _, _, _, _, converged, iters = _implicit.relax_qp(
+            Q, q, A, b, G, h, x, s, z, y, **kwargs
+        )
+        return xr, sr, zr, yr, converged, iters
+    raise ValueError(f"unknown backend {backend!r}; expected 'e' or 'i'")
 
-    outputs = jax.lax.while_loop(
-        relaxed_continuation_criteria, pdip_newton_step, init_inputs
-    )
 
-    x_rlx, s_rlx, z_rlx, y_rlx = outputs[6:10]
-    converged = outputs[11]
-    pdip_iter = outputs[12]
-
-    return x_rlx, s_rlx, z_rlx, y_rlx, converged, pdip_iter
+__all__ = ["relax_qp"]

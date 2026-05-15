@@ -1,32 +1,72 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "qpax"
-version = "0.0.12"
+version = "0.1.0"
 description = "Differentiable QP solver in JAX."
-authors = [{ name = "Kevin Tracy", email = "kevintracy48@gmail.com" }]
+authors = [{ name = "Jon Arrizabalaga", email = "arrijon96@gmail.com" }]
 readme = "README.md"
-license = { text = "MIT" }
+license = { file = "LICENSE" }
 requires-python = ">=3.10"
-keywords = ["optimization", "automatic differentiation", "jax"]
+keywords = ["optimization", "automatic differentiation", "jax", "quadratic programming"]
 classifiers = [
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-dependencies = ["jax>=0.4.0", "jaxlib>=0.4.0"]
-
-[dependency-groups]
-dev = ["pre-commit", "pytest", "ruff"]
+dependencies = [
+  "jax>=0.4.0",
+  "jaxlib>=0.4.0"
+]
 
 [project.urls]
-"Homepage" = "https://github.com/qpax-solver/qpax"
+Homepage = "https://github.com/qpax-solver/qpax"
+Documentation = "https://qpax-solver.github.io/qpax"
+Repository = "https://github.com/qpax-solver/qpax"
+Issues = "https://github.com/qpax-solver/qpax/issues"
+
+[project.optional-dependencies]
+cuda13 = [
+  "jax[cuda13]>=0.4.0; platform_system == 'Linux' and (platform_machine == 'x86_64' or platform_machine == 'aarch64')",
+]
+cuda12 = [
+  "jax[cuda12]>=0.4.0; platform_system == 'Linux' and (platform_machine == 'x86_64' or platform_machine == 'aarch64')",
+]
+dev = [
+  "pytest",
+  "ruff",
+  "numpy",
+  "scipy",
+  "matplotlib",
+  "pandas",
+  "joblib",
+  "tqdm",
+  "cvxpy",
+  "optax",
+  "pydecomp",
+  "pyyaml",
+  "equinox",
+  "ipython",
+]
+docs = [
+  "mkdocs-material>=9.5",
+  "mkdocstrings[python]>=0.24",
+  "pymdown-extensions>=10.0",
+]
+
+[tool.setuptools]
+include-package-data = false
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["qpax*"]
+exclude = ["test*", "examples*", "theory*", "benchmarks*", "docs*"]
 
 [tool.ruff]
 line-length = 88
@@ -45,4 +85,3 @@ select = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
-"node.py" = ["E402"]
