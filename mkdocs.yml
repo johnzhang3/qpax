@@ -85,19 +85,15 @@ nav:
       - Batched solving: quickstart/batched-solve.md
       - Batched differentiating: quickstart/batched-differentiate.md
   - Solver settings: solver-settings.md
-  - Algorithm:
-      - algorithm/index.md
-      - Core algorithm: algorithm/core.md
-      - Explicit algorithm: algorithm/explicit.md
-      - Implicit algorithm: algorithm/implicit.md
+  # - Algorithm:
+  #     - algorithm/index.md
+  #     - Core algorithm: algorithm/core.md
+  #     - Explicit algorithm: algorithm/explicit.md
+  #     - Implicit algorithm: algorithm/implicit.md
   - API reference:
       - api/index.md
       - Core API: api/core.md
       - Explicit API: api/explicit.md
       - Implicit API: api/implicit.md
-  - Examples:
-      - examples/index.md
-      - Bilevel optimization: examples/bilevel.md
-      - MPC autotuning: examples/mpc-autotuning.md
-      - Multi-agent safety filter: examples/multi-agent-safety.md
+  - Examples: examples.md
   - Citing: citing.md
