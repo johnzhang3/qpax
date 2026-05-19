@@ -63,13 +63,14 @@ This project is licensed under the Apache License 2.0 — see the [LICENSE](LICE
 If you use this solver, please cite our work(s):
 
 ```
-@misc{arrizabalaga2026adifferentiable,
-    title         = {A Differentiable Interior-Point Method in Single Precision},
-    author        = {Jon Arrizabalaga, Kevin Tracy, Zachary Manchester},
-    year          = {2026},
-    eprint        = {XXXX},
-    archivePrefix = {arXiv},
-    primaryClass  = {math.OC}
+@misc{arrizabalaga2026differentiableinteriorpointmethodsingle,
+      title={A Differentiable Interior-Point Method in Single Precision}, 
+      author={Jon Arrizabalaga and Kevin Tracy and Zachary Manchester},
+      year={2026},
+      eprint={2605.17913},
+      archivePrefix={arXiv},
+      primaryClass={math.OC},
+      url={https://arxiv.org/abs/2605.17913}, 
 }
 ```
 ```
