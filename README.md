@@ -9,13 +9,15 @@
   <a href="https://pypi.org/project/qpax/"><img src="https://img.shields.io/pypi/pyversions/qpax.svg" alt="Python versions"></a>
   <a href="https://github.com/qpax-solver/qpax/actions/workflows/build.yaml"><img src="https://github.com/qpax-solver/qpax/actions/workflows/build.yaml/badge.svg" alt="Build status"></a>
   <a href="https://qpax-solver.github.io/qpax"><img src="https://img.shields.io/badge/docs-online-brightgreen" alt="Documentation"></a>
+  <a href="https://arxiv.org/abs/2605.17913"><img src="https://img.shields.io/badge/arXiv-2605.17913-b31b1b.svg" alt="arXiv"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" alt="License"></a>
 </p>
 
 <p align="center">
   <a href="#features">Features</a> •
   <a href="https://qpax-solver.github.io/qpax/installation/">Installation</a> •
-  <a href="https://qpax-solver.github.io/qpax">Documentation</a>
+  <a href="https://qpax-solver.github.io/qpax">Documentation</a> •
+  <a href="https://arxiv.org/pdf/2605.17913">Paper</a>
 </p>
 
 This package can be used for solving and differentiating (batched) convex quadratic programs of the following form:
