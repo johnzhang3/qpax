@@ -12,6 +12,6 @@ These are the settings of the `qpax` solver:
 | `sigma`         | `0.125`                 | i       | Centering parameter $\sigma$ targeting the next duality gap. Accepted in `e` for API uniformity but unused (explicit uses Mehrotra centering). |
 | `target_kappa`  | `1e-3`        | e, i    | Relaxation parameter $\kappa$ for the perturbed complementarity condition $s \cdot z = \kappa$. Used only by `relax_qp` and `solve_qp_primal`. |
 
-\* For further details on boths backends, see [Algorithm](./algorithm/core.md).
+\* For further details on boths backends, see [Algorithm]() (comming soon).
 
 
