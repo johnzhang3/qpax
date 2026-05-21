@@ -2,10 +2,23 @@ import jax
 import jax.numpy as jnp
 
 from qpax._verbose import print_footer, print_header
-from qpax.explicit.pdip import _all_finite, factorize_kkt, ort_linesearch, solve_kkt_rhs
+from qpax.explicit.pdip import (
+    LinearSolver,
+    _all_finite,
+    factorize_kkt,
+    factorize_full_kkt,
+    ort_linesearch,
+    solve_full_kkt_rhs,
+    solve_kkt_rhs,
+)
 
 
-def pdip_newton_step(inputs, verbose: bool = False):
+def pdip_newton_step(
+    inputs,
+    verbose: bool = False,
+    linear_solver: LinearSolver = LinearSolver.CHOLESKY,
+    full_kkt: bool = False,
+):
     """
     Algorithm 3 Relaxing a Quadratic Program
     """
@@ -40,14 +53,23 @@ def pdip_newton_step(inputs, verbose: bool = False):
     converged = jnp.where(jnp.linalg.norm(kkt_res, ord=jnp.inf) < solver_tol, 1, 0)
 
     # calculate and take Newton step
-    P_inv_vec, L_H, L_F = factorize_kkt(Q, G, A, s, z)
-    dx, ds, dz, dy = solve_kkt_rhs(G, A, s, z, P_inv_vec, L_H, L_F, -r1, -r2, -r3, -r4)
+    if full_kkt:
+        factor_info = factorize_full_kkt(Q, G, A, s, z, linear_solver)
+        dx, ds, dz, dy = solve_full_kkt_rhs(
+            G, A, factor_info, -r1, -r2, -r3, -r4, linear_solver
+        )
+    else:
+        factor_info, L_H, L_F = factorize_kkt(Q, G, A, s, z, linear_solver)
+        dx, ds, dz, dy = solve_kkt_rhs(
+            G, A, s, z, factor_info, L_H, L_F, -r1, -r2, -r3, -r4,
+            linear_solver,
+        )
 
     # linesearch and update primal & dual vars
     alpha = 0.99 * jnp.min(
         jnp.array([1.0, 0.99 * ort_linesearch(s, ds), 0.99 * ort_linesearch(z, dz)])
     )
-    step_finite = _all_finite(P_inv_vec, dx, ds, dz, dy, alpha)
+    step_finite = _all_finite(factor_info, dx, ds, dz, dy, alpha)
     bad_step_seen = jnp.logical_or(bad_step_seen, jnp.logical_not(step_finite))
 
     if verbose:
@@ -118,6 +140,8 @@ def relax_qp(
     solver_tol=1e-5,
     target_kappa=1e-3,
     max_iter=30,
+    linear_solver: LinearSolver = LinearSolver.CHOLESKY,
+    full_kkt: bool = False,
     return_bad_step=False,
     sigma: float = 0.125,  # noqa: ARG001 — accepted for API uniformity; explicit uses Mehrotra centering
     verbose: bool = False,
@@ -165,7 +189,7 @@ def relax_qp(
             tol=solver_tol,
             max_iter=max_iter,
             precision="f32" if Q.dtype == jnp.float32 else "f64",
-            backend="explicit",
+            backend="explicit-full-kkt" if full_kkt else "explicit",
         )
         print(
             "iter      r1          r2         r3         r4         alpha      kappa     finite"  # noqa: E501
@@ -175,10 +199,22 @@ def relax_qp(
         )
         outputs = init_inputs
         while relaxed_continuation_criteria(outputs):
-            outputs = pdip_newton_step(outputs, verbose=True)
+            outputs = pdip_newton_step(
+                outputs,
+                verbose=True,
+                linear_solver=linear_solver,
+                full_kkt=full_kkt,
+            )
     else:
+        def step_fn(inputs):
+            return pdip_newton_step(
+                inputs,
+                linear_solver=linear_solver,
+                full_kkt=full_kkt,
+            )
+
         outputs = jax.lax.while_loop(
-            relaxed_continuation_criteria, pdip_newton_step, init_inputs
+            relaxed_continuation_criteria, step_fn, init_inputs
         )
 
     x_rlx, s_rlx, z_rlx, y_rlx = outputs[6:10]

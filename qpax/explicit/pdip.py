@@ -13,12 +13,15 @@ from qpax._verbose import print_footer, print_header
 class LinearSolver(Enum):
     CHOLESKY = "cholesky"
     QR = "qr"
+    LU = "lu"
 
 
 def _factor(M, solver: LinearSolver):
     """Factorize a matrix using the chosen method."""
     if solver is LinearSolver.QR:
         return jnp.linalg.qr(M)
+    if solver is LinearSolver.LU:
+        return jsp.linalg.lu_factor(M)
     return jsp.linalg.cho_factor(M)
 
 
@@ -27,6 +30,8 @@ def _solve(factored, rhs, solver: LinearSolver):
     if solver is LinearSolver.QR:
         Q, R = factored
         return jsp.linalg.solve_triangular(R, Q.T @ rhs)
+    if solver is LinearSolver.LU:
+        return jsp.linalg.lu_solve(factored, rhs)
     return jsp.linalg.cho_solve(factored, rhs)
 
 
@@ -60,7 +65,10 @@ class QPState(NamedTuple):
 
 def _all_finite(*arrays) -> jax.Array:
     """Return True iff every provided array/scalar is finite."""
-    return jnp.all(jnp.stack([jnp.all(jnp.isfinite(jnp.ravel(a))) for a in arrays]))
+    leaves = []
+    for array in arrays:
+        leaves.extend(jax.tree_util.tree_leaves(array))
+    return jnp.all(jnp.stack([jnp.all(jnp.isfinite(jnp.ravel(a))) for a in leaves]))
 
 
 def initialize(qp: QPData, solver: LinearSolver = LinearSolver.CHOLESKY) -> QPState:
@@ -123,6 +131,115 @@ def solve_kkt_rhs(
     return dx, ds, dz, dy
 
 
+def factorize_full_kkt(Q, G, A, s, z, solver: LinearSolver = LinearSolver.LU):
+    """Factorize the explicit full 4-block Newton KKT system.
+
+    This avoids forming the condensed Schur complement
+    ``Q + G.T @ diag(z / s) @ G``.  The unknown ordering is
+    ``(dx, ds, dz, dy)`` and the row ordering is stationarity, primal
+    inequality, complementarity, equality:
+
+        [ Q   0   G.T  A.T ]
+        [ G   I    0    0  ]
+        [ 0   Z    S    0  ]
+        [ A   0    0    0  ]
+    """
+    n = Q.shape[0]
+    p = G.shape[0]
+    m = A.shape[0]
+    dtype = Q.dtype
+    row1 = jnp.concatenate(
+        [
+            Q,
+            jnp.zeros((n, p), dtype=dtype),
+            G.T,
+            A.T,
+        ],
+        axis=1,
+    )
+    row2 = jnp.concatenate(
+        [
+            G,
+            jnp.eye(p, dtype=dtype),
+            jnp.zeros((p, p), dtype=dtype),
+            jnp.zeros((p, m), dtype=dtype),
+        ],
+        axis=1,
+    )
+    row3 = jnp.concatenate(
+        [
+            jnp.zeros((p, n), dtype=dtype),
+            jnp.diag(z),
+            jnp.diag(s),
+            jnp.zeros((p, m), dtype=dtype),
+        ],
+        axis=1,
+    )
+    row4 = jnp.concatenate(
+        [
+            A,
+            jnp.zeros((m, p), dtype=dtype),
+            jnp.zeros((m, p), dtype=dtype),
+            jnp.zeros((m, m), dtype=dtype),
+        ],
+        axis=1,
+    )
+    K = jnp.concatenate([row1, row2, row3, row4], axis=0)
+    full_solver = LinearSolver.QR if solver is LinearSolver.QR else LinearSolver.LU
+    return _factor(K, full_solver)
+
+
+def solve_full_kkt_rhs(
+    G,
+    A,
+    factor,
+    v1,
+    v2,
+    v3,
+    v4,
+    solver: LinearSolver = LinearSolver.LU,
+):
+    """Solve the explicit full 4-block KKT RHS.
+
+    Arguments ``v1`` through ``v4`` match ``solve_kkt_rhs``: stationarity,
+    complementarity, primal inequality, and equality residual right-hand sides.
+    """
+    n = G.shape[1]
+    p = G.shape[0]
+    full_solver = LinearSolver.QR if solver is LinearSolver.QR else LinearSolver.LU
+    rhs = jnp.concatenate([v1, v3, v2, v4])
+    sol = _solve(factor, rhs, full_solver)
+    dx = sol[:n]
+    ds = sol[n : n + p]
+    dz = sol[n + p : n + 2 * p]
+    dy = sol[n + 2 * p :]
+    return dx, ds, dz, dy
+
+
+def _explicit_kkt_direction(
+    Q,
+    G,
+    A,
+    s,
+    z,
+    v1,
+    v2,
+    v3,
+    v4,
+    solver: LinearSolver,
+    *,
+    full_kkt: bool,
+):
+    if full_kkt:
+        factor = factorize_full_kkt(Q, G, A, s, z, solver)
+        return (*solve_full_kkt_rhs(G, A, factor, v1, v2, v3, v4, solver), factor)
+    P_inv_vec, L_H, L_F = factorize_kkt(Q, G, A, s, z, solver)
+    return (
+        *solve_kkt_rhs(G, A, s, z, P_inv_vec, L_H, L_F, v1, v2, v3, v4, solver),
+        P_inv_vec,
+    )
+
+
 def ort_linesearch(x, dx):
     """max alpha <= 1 such that x + dx >= 0"""
     alphas = jnp.where(dx < 0, -x / dx, 1.0)
@@ -171,6 +288,7 @@ def solve_qp(
     solver_tol: float = 1e-5,
     max_iter: int = 30,
     linear_solver: LinearSolver = LinearSolver.CHOLESKY,
+    full_kkt: bool = False,
     return_bad_step: bool = False,
     sigma: float = 0.125,  # noqa: ARG001 — accepted for API uniformity; explicit uses Mehrotra centering
     verbose: bool = False,
@@ -184,7 +302,9 @@ def solve_qp(
         b: (m,) equality constraint vector
         G: (p, n) inequality constraint matrix
         h: (p,) inequality constraint vector
-        linear_solver: LinearSolver.CHOLESKY or LinearSolver.QR
+        linear_solver: LinearSolver.CHOLESKY, LinearSolver.QR, or LinearSolver.LU
+        full_kkt: if True, factor the explicit 4-block Newton KKT system
+            directly instead of the condensed Schur complement.
 
     Returns:
         x: (n,) optimal solution
@@ -205,8 +325,10 @@ def solve_qp(
         outputs = (x, jnp.zeros(0), jnp.zeros(0), jnp.zeros(0), 1, 0)
         return (*outputs, False) if return_bad_step else outputs
 
+    init_solver = LinearSolver.QR if linear_solver is LinearSolver.QR else LinearSolver.CHOLESKY
+
     if len(h) == 0:
-        x, y = solve_eq_only(Q, q, A, b, linear_solver)
+        x, y = solve_eq_only(Q, q, A, b, init_solver)
         outputs = (x, jnp.zeros(0), jnp.zeros(0), y, 1, 0)
         return (*outputs, False) if return_bad_step else outputs
 
@@ -219,7 +341,7 @@ def solve_qp(
         linear_solver=linear_solver,
     )
     qp = QPData(Q, q, A, b, G, h)
-    state = initialize(qp, linear_solver)
+    state = initialize(qp, init_solver)
 
     nonlocal_tol = params.tol
     ls = params.linear_solver
@@ -250,22 +372,21 @@ def solve_qp(
             jnp.linalg.norm(kkt_res, ord=jnp.inf) < nonlocal_tol, 1, 0
         )
 
-        P_inv_vec, L_H, L_F = factorize_kkt(Q, G, A, s, z, ls)
-        _, ds_a, dz_a, _ = solve_kkt_rhs(
-            G, A, s, z, P_inv_vec, L_H, L_F, -r1, -r2, -r3, -r4, ls
+        _, ds_a, dz_a, _, factor_info = _explicit_kkt_direction(
+            Q, G, A, s, z, -r1, -r2, -r3, -r4, ls, full_kkt=full_kkt
         )
 
         sigma, mu = centering_params(s, z, ds_a, dz_a)
         r2 = r2 - (sigma * mu - (ds_a * dz_a))
-        dx, ds, dz, dy = solve_kkt_rhs(
-            G, A, s, z, P_inv_vec, L_H, L_F, -r1, -r2, -r3, -r4, ls
+        dx, ds, dz, dy, _ = _explicit_kkt_direction(
+            Q, G, A, s, z, -r1, -r2, -r3, -r4, ls, full_kkt=full_kkt
         )
 
         alpha = 0.99 * jnp.min(
             jnp.array([ort_linesearch(s, ds), ort_linesearch(z, dz)])
         )
         step_finite = _all_finite(
-            P_inv_vec, ds_a, dz_a, sigma, mu, dx, ds, dz, dy, alpha
+            factor_info, ds_a, dz_a, sigma, mu, dx, ds, dz, dy, alpha
         )
         bad_step_seen = jnp.logical_or(bad_step_seen, jnp.logical_not(step_finite))
 
@@ -304,7 +425,7 @@ def solve_qp(
             tol=solver_tol,
             max_iter=max_iter,
             precision="f32" if Q.dtype == jnp.float32 else "f64",
-            backend="explicit",
+            backend="explicit-full-kkt" if full_kkt else "explicit",
         )
         print(
             "iter      rt          rc         ri         re        α         mu         σ"  # noqa: E501

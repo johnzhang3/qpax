@@ -45,9 +45,30 @@ def solve_qp(
     """
     if backend == "e":
         return _explicit.solve_qp(Q, q, A, b, G, h, **kwargs)
+    if backend == "e_qr":
+        return _explicit.solve_qp(
+            Q, q, A, b, G, h, linear_solver=LinearSolver.QR, **kwargs
+        )
+    if backend == "e_full_lu":
+        return _explicit.solve_qp(
+            Q, q, A, b, G, h,
+            linear_solver=LinearSolver.LU,
+            full_kkt=True,
+            **kwargs,
+        )
+    if backend == "e_full_qr":
+        return _explicit.solve_qp(
+            Q, q, A, b, G, h,
+            linear_solver=LinearSolver.QR,
+            full_kkt=True,
+            **kwargs,
+        )
     if backend == "i":
         return _implicit.solve_qp(Q, q, A, b, G, h, **kwargs)
-    raise ValueError(f"unknown backend {backend!r}; expected 'e' or 'i'")
+    raise ValueError(
+        f"unknown backend {backend!r}; expected 'e', 'e_qr', "
+        "'e_full_lu', 'e_full_qr', or 'i'"
+    )
 
 
 __all__ = [

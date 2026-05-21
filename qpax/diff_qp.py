@@ -48,9 +48,18 @@ def solve_qp_primal(
     """
     if backend == "e":
         return _explicit.solve_qp_primal(Q, q, A, b, G, h, **kwargs)
+    if backend == "e_qr":
+        return _explicit.solve_qp_primal_qr(Q, q, A, b, G, h, **kwargs)
+    if backend == "e_full_lu":
+        return _explicit.solve_qp_primal_full_lu(Q, q, A, b, G, h, **kwargs)
+    if backend == "e_full_qr":
+        return _explicit.solve_qp_primal_full_qr(Q, q, A, b, G, h, **kwargs)
     if backend == "i":
         return _implicit.solve_qp_primal(Q, q, A, b, G, h, **kwargs)
-    raise ValueError(f"unknown backend {backend!r}; expected 'e' or 'i'")
+    raise ValueError(
+        f"unknown backend {backend!r}; expected 'e', 'e_qr', "
+        "'e_full_lu', 'e_full_qr', or 'i'"
+    )
 
 
 __all__ = ["solve_qp_primal"]

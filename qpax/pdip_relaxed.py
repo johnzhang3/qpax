@@ -9,6 +9,7 @@ from typing import Any
 import jax
 
 from qpax.explicit import pdip_relaxed as _explicit
+from qpax.explicit.pdip import LinearSolver
 from qpax.implicit import pdip_relaxed as _implicit
 
 
@@ -50,12 +51,35 @@ def relax_qp(
     """
     if backend == "e":
         return _explicit.relax_qp(Q, q, A, b, G, h, x, s, z, y, **kwargs)
+    if backend == "e_qr":
+        return _explicit.relax_qp(
+            Q, q, A, b, G, h, x, s, z, y,
+            linear_solver=LinearSolver.QR,
+            **kwargs,
+        )
+    if backend == "e_full_lu":
+        return _explicit.relax_qp(
+            Q, q, A, b, G, h, x, s, z, y,
+            linear_solver=LinearSolver.LU,
+            full_kkt=True,
+            **kwargs,
+        )
+    if backend == "e_full_qr":
+        return _explicit.relax_qp(
+            Q, q, A, b, G, h, x, s, z, y,
+            linear_solver=LinearSolver.QR,
+            full_kkt=True,
+            **kwargs,
+        )
     if backend == "i":
         xr, sr, zr, yr, _, _, _, _, converged, iters = _implicit.relax_qp(
             Q, q, A, b, G, h, x, s, z, y, **kwargs
         )
         return xr, sr, zr, yr, converged, iters
-    raise ValueError(f"unknown backend {backend!r}; expected 'e' or 'i'")
+    raise ValueError(
+        f"unknown backend {backend!r}; expected 'e', 'e_qr', "
+        "'e_full_lu', 'e_full_qr', or 'i'"
+    )
 
 
 __all__ = ["relax_qp"]
